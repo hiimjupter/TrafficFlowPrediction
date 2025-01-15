@@ -71,8 +71,10 @@ def plot_results(y_true, y_preds, names):
         y_pred: List/ndarray, predicted data.
         names: List, Method names.
     """
-    d = '2016-3-4 00:00'
-    x = pd.date_range(d, periods=288, freq='5min')
+    d = '2006-10-25 19:00'
+    x = pd.date_range(d, periods=288, freq='15min')
+    num_periods = len(y_true)
+    x = pd.date_range(d, periods=num_periods, freq='15min')
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -94,6 +96,7 @@ def plot_results(y_true, y_preds, names):
 
 
 def main():
+    data_folder = '/Users/jupternguyen/Projects/TrafficFlowPrediction/data/splitted_scats'
     lstm = load_model('model/lstm.h5')
     gru = load_model('model/gru.h5')
     saes = load_model('model/saes.h5')
@@ -101,9 +104,9 @@ def main():
     names = ['LSTM', 'GRU', 'SAEs']
 
     lag = 12
-    file1 = 'data/train.csv'
-    file2 = 'data/test.csv'
-    _, _, X_test, y_test, scaler = process_data(file1, file2, lag)
+    train = f'{data_folder}/0970_HIGH STREET_RD E of WARRIGAL_RD_train.csv'
+    test = f'{data_folder}/0970_HIGH STREET_RD E of WARRIGAL_RD_test.csv'
+    _, _, X_test, y_test, scaler = process_data(train, test, lag)
     y_test = scaler.inverse_transform(y_test.reshape(-1, 1)).reshape(1, -1)[0]
 
     y_preds = []
@@ -115,7 +118,8 @@ def main():
         file = 'images/' + name + '.png'
         plot_model(model, to_file=file, show_shapes=True)
         predicted = model.predict(X_test)
-        predicted = scaler.inverse_transform(predicted.reshape(-1, 1)).reshape(1, -1)[0]
+        predicted = scaler.inverse_transform(
+            predicted.reshape(-1, 1)).reshape(1, -1)[0]
         y_preds.append(predicted[:288])
         print(name)
         eva_regress(y_test, predicted)

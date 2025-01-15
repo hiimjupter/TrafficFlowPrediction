@@ -78,18 +78,32 @@ def train_seas(models, X_train, y_train, name, config):
 
 
 def main(argv):
+    data_folder = '/Users/jupternguyen/Projects/TrafficFlowPrediction/data/splitted_scats'
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model",
         default="lstm",
         help="Model to train.")
+    parser.add_argument(
+        "--scats_num",
+        required=True,
+        help="SCATS number.")
+    parser.add_argument(
+        "--location",
+        required=True,
+        help="Location.")
     args = parser.parse_args()
 
+    # Lag for the model
     lag = 12
+    # Training configuration
     config = {"batch": 256, "epochs": 600}
-    file1 = 'data/train.csv'
-    file2 = 'data/test.csv'
-    X_train, y_train, _, _, _ = process_data(file1, file2, lag)
+
+    scats_num = args.scats_num
+    location = args.location
+    train = f'{data_folder}/{scats_num}_{location}_train.csv'
+    test = f'{data_folder}/{scats_num}_{location}_test.csv'
+    X_train, y_train, _, _, _ = process_data(train, test, lag)
 
     if args.model == 'lstm':
         X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))

@@ -6,6 +6,21 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
+def split_data(scats_num, location, split_ratio):
+    # read data
+    df = pd.read_csv(input_dir + '/' + str(scats_num) +
+                     '_' + location + '.csv')
+    # Calculate index for splitting data based on the specified split_ratio
+    split_index = int(len(df) * (1 - test_ratio))
+    train_df = df.iloc[:split_index]  # Select rows for training data
+    test_df = df.iloc[split_index:]   # Select rows for testing data
+    # Save data to the output directory
+    train_df.to_csv(output_dir + '/' + str(scats_num) + '_' +
+                    location + '_train.csv', index=False)
+    test_df.to_csv(output_dir + '/' + str(scats_num) +
+                   '_' + location + '_test.csv', index=False)
+
+
 def process_data(train, test, lags):
     """Process data
     Reshape and split train\test data.
@@ -21,12 +36,13 @@ def process_data(train, test, lags):
         y_test: ndarray.
         scaler: StandardScaler.
     """
-    attr = 'Lane 1 Flow (Veh/5 Minutes)'
+    attr = 'Lane 1 Flow (Veh/15 Minutes)'
     df1 = pd.read_csv(train, encoding='utf-8').fillna(0)
     df2 = pd.read_csv(test, encoding='utf-8').fillna(0)
 
     # scaler = StandardScaler().fit(df1[attr].values)
-    scaler = MinMaxScaler(feature_range=(0, 1)).fit(df1[attr].values.reshape(-1, 1))
+    scaler = MinMaxScaler(feature_range=(0, 1)).fit(
+        df1[attr].values.reshape(-1, 1))
     flow1 = scaler.transform(df1[attr].values.reshape(-1, 1)).reshape(1, -1)[0]
     flow2 = scaler.transform(df2[attr].values.reshape(-1, 1)).reshape(1, -1)[0]
 
