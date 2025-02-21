@@ -1,9 +1,9 @@
 """
-Defination of NN model
+Definition of NN model
 """
-from keras.layers import Dense, Dropout, Activation
-from keras.layers.recurrent import LSTM, GRU
-from keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Activation
+from tensorflow.keras.layers import LSTM, GRU
+from tensorflow.keras.models import Sequential
 
 
 def get_lstm(units):
@@ -11,7 +11,7 @@ def get_lstm(units):
     Build LSTM Model.
 
     # Arguments
-        units: List(int), number of input, output and hidden units.
+        units: List[int], number of input, output and hidden units.
     # Returns
         model: Model, nn model.
     """
@@ -30,7 +30,7 @@ def get_gru(units):
     Build GRU Model.
 
     # Arguments
-        units: List(int), number of input, output and hidden units.
+        units: List[int], number of input, output and hidden units.
     # Returns
         model: Model, nn model.
     """
@@ -49,9 +49,9 @@ def _get_sae(inputs, hidden, output):
     Build SAE Model.
 
     # Arguments
-        inputs: Integer, number of input units.
-        hidden: Integer, number of hidden units.
-        output: Integer, number of output units.
+        inputs: int, number of input units.
+        hidden: int, number of hidden units.
+        output: int, number of output units.
     # Returns
         model: Model, nn model.
     """
@@ -70,9 +70,9 @@ def get_saes(layers):
     Build SAEs Model.
 
     # Arguments
-        layers: List(int), number of input, output and hidden units.
+        layers: List[int], number of input, output and hidden units.
     # Returns
-        models: List(Model), List of SAE and SAEs.
+        models: List[Model], List of SAE and SAEs.
     """
     sae1 = _get_sae(layers[0], layers[1], layers[-1])
     sae2 = _get_sae(layers[1], layers[2], layers[-1])
