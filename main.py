@@ -116,8 +116,8 @@ def main():
 
     # Set up the lag and data
     lag = 12
-    train = f'{data_folder}/0970_HIGH STREET_RD E of WARRIGAL_RD_train.csv'
-    test = f'{data_folder}/0970_HIGH STREET_RD E of WARRIGAL_RD_test.csv'
+    train = f'{data_folder}/2000_BURWOOD_HWY E of WARRIGAL_RD_train.csv'
+    test = f'{data_folder}/2000_BURWOOD_HWY E of WARRIGAL_RD_test.csv'
     _, _, X_test, y_test, scaler = process_data(train, test, lag)
     y_test = scaler.inverse_transform(y_test.reshape(-1, 1)).reshape(1, -1)[0]
 
