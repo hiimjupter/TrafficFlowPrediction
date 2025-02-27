@@ -79,7 +79,7 @@ def train_seas(models, X_train, y_train, scats, location, name, config):
 
 
 def main(argv):
-    data_folder = '/Users/LINH KHANH/TrafficFlowPrediction/data/splitted_scats'
+    data_folder = '/Users/jupternguyen/Projects/TrafficFlowPrediction/data/splitted_scats'
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model",

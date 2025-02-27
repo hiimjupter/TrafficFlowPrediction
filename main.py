@@ -12,7 +12,9 @@ from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 import catboost
 from catboost import CatBoostRegressor
-import pickle  # added import
+import argparse
+import pickle
+import sys
 
 warnings.filterwarnings("ignore")
 
@@ -57,12 +59,64 @@ def eva_regress(y_true, y_pred):
     mae = metrics.mean_absolute_error(y_true, y_pred)
     mse = metrics.mean_squared_error(y_true, y_pred)
     r2 = metrics.r2_score(y_true, y_pred)
+
+    mtx = {
+        "mape": mape,
+        "evs": vs,
+        "mae": mae,
+        "mse": mse,
+        "rmse": math.sqrt(mse),
+        "r2": r2
+    }
+
     print('explained_variance_score:%f' % vs)
     print('mape:%f%%' % mape)
     print('mae:%f' % mae)
     print('mse:%f' % mse)
     print('rmse:%f' % math.sqrt(mse))
     print('r2:%f' % r2)
+
+    return mtx
+
+
+def plot_error(mtx):
+    """Plot error metrics for each model.
+
+    # Arguments
+        mtx: List of dictionaries, each containing error metrics for a model.
+    """
+
+    labels = ["MAPE", "EVS", "MAE", "MSE", "RMSE", "R2"]
+    model_names = ['LSTM', 'GRU', 'SAEs',
+                   'Random Forest', 'XGBoost', 'CatBoost']
+    positions = range(len(model_names))
+
+    # Initialize lists to store error metrics
+    mape, evs, mae, mse, rmse, r2 = [], [], [], [], [], []
+
+    # Extract error metrics for each model
+    for metrics in mtx:
+        mape.append(metrics["mape"])
+        evs.append(metrics["evs"])
+        mae.append(metrics["mae"])
+        mse.append(metrics["mse"])
+        rmse.append(metrics["rmse"])
+        r2.append(metrics["r2"])
+
+    error_measurements = [mape, evs, mae, mse, rmse, r2]
+
+    # Plot each error metric
+    plt.figure(figsize=(12, 10))
+    for i, em in enumerate(error_measurements):
+        plt.subplot(3, 2, i + 1)
+        plt.bar(positions, em, width=0.5)
+        plt.xticks(positions, model_names, rotation=45)
+        plt.title(labels[i])
+        plt.tight_layout()
+        if labels[i] in ["EVS", "R2"]:
+            plt.ylim(0.9, 1)
+
+    plt.show()
 
 
 def plot_results(y_true, y_preds, names):
@@ -74,9 +128,10 @@ def plot_results(y_true, y_preds, names):
         y_pred: List/ndarray, predicted data.
         names: List, Method names.
     """
-    d = '2006-10-25 19:00'
-    num_periods = len(y_true)
-    x = pd.date_range(d, periods=num_periods, freq='15min')
+    d = '2006-10-26 00:00'
+
+    # 1440 minutes in a day = 96 x 15 minute periods
+    x = pd.date_range(d, periods=96, freq='15min')
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -116,8 +171,8 @@ def main():
 
     # Set up the lag and data
     lag = 12
-    train = f'{data_folder}/2000_BURWOOD_HWY E of WARRIGAL_RD_train.csv'
-    test = f'{data_folder}/2000_BURWOOD_HWY E of WARRIGAL_RD_test.csv'
+    train = f'{data_folder}/2825_BURKE_RD S of EASTERN_FWY_train.csv'
+    test = f'{data_folder}/2825_BURKE_RD S of EASTERN_FWY_test.csv'
     _, _, X_test, y_test, scaler = process_data(train, test, lag)
     y_test = scaler.inverse_transform(y_test.reshape(-1, 1)).reshape(1, -1)[0]
 
@@ -138,7 +193,7 @@ def main():
         predicted = model.predict(X_test_nn)
         predicted = scaler.inverse_transform(
             predicted.reshape(-1, 1)).reshape(1, -1)[0]
-        y_preds.append(predicted[:960])
+        y_preds.append(predicted[:96])
         print(name)
         eva_regress(y_test, predicted)
 
@@ -148,12 +203,12 @@ def main():
         predicted = model.predict(X_test)
         predicted = scaler.inverse_transform(
             predicted.reshape(-1, 1)).reshape(1, -1)[0]
-        y_preds.append(predicted[:960])
+        y_preds.append(predicted[:96])
         print(name)
         eva_regress(y_test, predicted)
 
     # Plot the results
-    plot_results(y_test[:960], y_preds, all_names)
+    plot_results(y_test[:96], y_preds, all_names)
 
 
 if __name__ == '__main__':
