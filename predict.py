@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from data.data import process_data
 from keras.models import load_model
+import joblib
+from catboost import CatBoostRegressor
 
 
 warnings.filterwarnings("ignore")
@@ -14,9 +16,9 @@ warnings.filterwarnings("ignore")
 def flow_prediction(scats_num, location, time):
     data_folder = '/Users/jupternguyen/Projects/TrafficFlowPrediction/data/splitted_scats'
 
-    # Load NN model
-    saes = load_model(
-        'model/saes/{0}/{1}.h5'.format(scats_num, location))
+    # Load CatBoost model from .pkl file
+    model_path = f'model/random_forest/{scats_num}/{location}.pkl'
+    catboost_model = joblib.load(model_path)
 
     # Prepare the input data for prediction
     time = pd.to_datetime(time)
@@ -27,11 +29,11 @@ def flow_prediction(scats_num, location, time):
     # Find the index of the given time
     time_index = (time - pd.to_datetime('2006-10-26 00:00')).seconds // 900
 
-    # Reshape the data for the SAEs model
-    X_test_nn = np.reshape(X_test, (X_test.shape[0], X_test.shape[1]))
+    # Reshape the data for the CatBoost model
+    X_test_cb = X_test.reshape(X_test.shape[0], X_test.shape[1])
 
     # Predict the traffic flow
-    predicted = saes.predict(X_test_nn)
+    predicted = catboost_model.predict(X_test_cb)
     predicted = scaler.inverse_transform(
         predicted.reshape(-1, 1)).reshape(1, -1)[0]
 
@@ -44,7 +46,7 @@ def speed_calculation(scats_num, location, time):
     flow = flow_prediction(scats_num, location, time)
 
     # Calculate the speed
-    lambda_decay = 0.008  # Decay rate
+    lambda_decay = 0.01  # Decay rate
     F_base = 275  # Base flow, below which speed is 60 km/h (uncongested)
     excess_flow = max(flow - F_base, 0)
     v_eff = 60 * math.exp(-lambda_decay * excess_flow)
@@ -89,4 +91,4 @@ def compute_eta(location_lst, distance_lst, time):
 if __name__ == '__main__':
     # Example of going from A to C with B in between
     compute_eta(['2825_BURKE_RD S of EASTERN_FWY', '4032_BELMORE_RD E of BURKE_RD',
-                 '0970_WARRIGAL_RD N of HIGH STREET_RD'], [2.2, 4], '2025-02-26 10:15')
+                 '0970_WARRIGAL_RD N of HIGH STREET_RD', '3127_CANTERBURY_RD E of BALWYN_RD'], [3.2, 4, 8], '2025-02-26 10:15')

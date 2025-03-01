@@ -34,30 +34,60 @@ def process_data(train, test, lags):
         y_train: ndarray.
         X_test: ndarray.
         y_test: ndarray.
-        scaler: StandardScaler.
+        scaler: MinMax Scaler.
     """
-    attr = 'Lane 1 Flow (Veh/15 Minutes)'
+    target_attr = 'Lane 1 Flow (Veh/15 Minutes)'
+    feature_cols = ['Day', 'Hour', 'Hour-Sin',
+                    'Hour-Cos', 'Lag-15min', 'Lag-30min']
+
     df1 = pd.read_csv(train, encoding='utf-8').fillna(0)
     df2 = pd.read_csv(test, encoding='utf-8').fillna(0)
 
+    # Scale the target variable
     scaler = MinMaxScaler(feature_range=(0, 1)).fit(
-        df1[attr].values.reshape(-1, 1))
-    flow1 = scaler.transform(df1[attr].values.reshape(-1, 1)).reshape(1, -1)[0]
-    flow2 = scaler.transform(df2[attr].values.reshape(-1, 1)).reshape(1, -1)[0]
+        df1[target_attr].values.reshape(-1, 1))
+    flow1 = scaler.transform(
+        df1[target_attr].values.reshape(-1, 1)).reshape(1, -1)[0]
+    flow2 = scaler.transform(
+        df2[target_attr].values.reshape(-1, 1)).reshape(1, -1)[0]
 
-    train, test = [], []
+    # Extract features
+    features_train = df1[feature_cols].values
+    features_test = df2[feature_cols].values
+
+    # Feature scaling for numerical features
+    feature_scaler = MinMaxScaler(feature_range=(0, 1))
+    features_train_scaled = feature_scaler.fit_transform(features_train)
+    features_test_scaled = feature_scaler.transform(features_test)
+
+    train_data, test_data = [], []
+
+    # Create sequences for time series prediction
     for i in range(lags, len(flow1)):
-        train.append(flow1[i - lags: i + 1])
+        # Combine flow lags with other features
+        train_sample = np.concatenate([
+            flow1[i-lags:i],  # Past flow values
+            features_train_scaled[i]  # Current features
+        ])
+        # Append current flow as target
+        train_data.append(np.append(train_sample, flow1[i]))
+
     for i in range(lags, len(flow2)):
-        test.append(flow2[i - lags: i + 1])
+        test_sample = np.concatenate([
+            flow2[i-lags:i],  # Past flow values
+            features_test_scaled[i]  # Current features
+        ])
+        # Append current flow as target
+        test_data.append(np.append(test_sample, flow2[i]))
 
-    train = np.array(train)
-    test = np.array(test)
-    np.random.shuffle(train)
+    train_data = np.array(train_data)
+    test_data = np.array(test_data)
+    np.random.shuffle(train_data)
 
-    X_train = train[:, :-1]
-    y_train = train[:, -1]
-    X_test = test[:, :-1]
-    y_test = test[:, -1]
+    # Split features and target
+    X_train = train_data[:, :-1]
+    y_train = train_data[:, -1]
+    X_test = test_data[:, :-1]
+    y_test = test_data[:, -1]
 
     return X_train, y_train, X_test, y_test, scaler

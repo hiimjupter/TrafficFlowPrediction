@@ -8,10 +8,6 @@ from keras.utils.vis_utils import plot_model
 import sklearn.metrics as metrics
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
-import catboost
-from catboost import CatBoostRegressor
 import argparse
 import pickle
 import sys
@@ -161,7 +157,7 @@ def main():
     models_nn = [lstm, gru, saes]
     names_nn = ['LSTM', 'GRU', 'SAEs']
 
-    # Load classical ML models from pickle files instead of creating new ones
+    # Load classical ML models from pickle files
     names_ml = ['random_forest', 'xgboost', 'catboost']
     models_ml = []
     for name in names_ml:
@@ -171,44 +167,128 @@ def main():
 
     # Set up the lag and data
     lag = 12
-    train = f'{data_folder}/2825_BURKE_RD S of EASTERN_FWY_train.csv'
-    test = f'{data_folder}/2825_BURKE_RD S of EASTERN_FWY_test.csv'
-    _, _, X_test, y_test, scaler = process_data(train, test, lag)
+    train = f'{data_folder}/0970_HIGH STREET_RD E of WARRIGAL_RD_train.csv'
+    test = f'{data_folder}/0970_HIGH STREET_RD E of WARRIGAL_RD_test.csv'
+
+    # Use updated process_data function which now handles feature columns
+    X_test, y_test, X_test, y_test, scaler = process_data(train, test, lag)
     y_test = scaler.inverse_transform(y_test.reshape(-1, 1)).reshape(1, -1)[0]
+
+    # Extract time series and feature portions based on updated data processing
+    # Assuming the first 'lag' columns are time series data and the rest are features
+    X_test_time = X_test[:, :lag]
+    X_test_features = X_test[:, lag:]
 
     # Prepare the list to store predictions and model names
     y_preds = []
     all_names = names_nn + display_names_ml
     all_models = models_nn + models_ml
 
-    # First process the neural network models
+    # Process the neural network models
     for name, model in zip(names_nn, models_nn):
+        print(name)
         if name == 'SAEs':
-            X_test_nn = np.reshape(X_test, (X_test.shape[0], X_test.shape[1]))
+            # SAE takes flattened input
+            X_test_nn = X_test
         else:
-            X_test_nn = np.reshape(
-                X_test, (X_test.shape[0], X_test.shape[1], 1))
+            # For LSTM and GRU, check if they were trained with features
+            if isinstance(model.input, list):
+                # Model expects separate time series and feature inputs
+                X_test_time_reshaped = np.reshape(
+                    X_test_time, (X_test_time.shape[0], X_test_time.shape[1], 1))
+                predicted = model.predict(
+                    [X_test_time_reshaped, X_test_features])
+            else:
+                # Model expects only time series input
+                X_test_nn = np.reshape(
+                    X_test_time, (X_test_time.shape[0], X_test_time.shape[1], 1))
+                predicted = model.predict(X_test_nn)
+
+        # If we didn't get a prediction yet (for SAE case)
+        if name == 'SAEs':
+            predicted = model.predict(X_test_nn)
+
+        # Plot the model architecture
         file = 'images/' + name + '.png'
-        plot_model(model, to_file=file, show_shapes=True)
-        predicted = model.predict(X_test_nn)
+        try:
+            plot_model(model, to_file=file, show_shapes=True)
+        except Exception as e:
+            print(f"Could not plot model architecture: {e}")
+
+        # Inverse transform predictions
         predicted = scaler.inverse_transform(
             predicted.reshape(-1, 1)).reshape(1, -1)[0]
         y_preds.append(predicted[:96])
-        print(name)
         eva_regress(y_test, predicted)
 
-    # Process the classical machine learning models (loaded from pkl files)
+    # Process the classical machine learning models
     for name, model in zip(display_names_ml, models_ml):
-        # use loaded model without re-training
+        print(name)
         predicted = model.predict(X_test)
         predicted = scaler.inverse_transform(
             predicted.reshape(-1, 1)).reshape(1, -1)[0]
         y_preds.append(predicted[:96])
-        print(name)
         eva_regress(y_test, predicted)
 
     # Plot the results
     plot_results(y_test[:96], y_preds, all_names)
+
+    # Plot error metrics across models
+    metrics_list = []
+    all_models = [*models_nn, *models_ml]
+    all_names = [*names_nn, *display_names_ml]
+
+    for i, model in enumerate(all_models):
+        name = all_names[i]
+        print(f"Calculating metrics for {name}")
+        if name in names_nn:
+            if name == 'SAEs':
+                predicted = model.predict(X_test)
+            else:
+                if isinstance(model.input, list):
+                    X_test_time_reshaped = np.reshape(
+                        X_test_time, (X_test_time.shape[0], X_test_time.shape[1], 1))
+                    predicted = model.predict(
+                        [X_test_time_reshaped, X_test_features])
+                else:
+                    X_test_nn = np.reshape(
+                        X_test_time, (X_test_time.shape[0], X_test_time.shape[1], 1))
+                    predicted = model.predict(X_test_nn)
+        else:
+            predicted = model.predict(X_test)
+
+        predicted = scaler.inverse_transform(
+            predicted.reshape(-1, 1)).reshape(1, -1)[0]
+        metrics_list.append(calculate_metrics(y_test, predicted))
+
+    plot_error(metrics_list)
+
+
+def calculate_metrics(y_true, y_pred):
+    """Calculate all metrics for a prediction
+
+    # Arguments
+        y_true: List/ndarray, true data
+        y_pred: List/ndarray, predicted data
+    # Returns
+        mtx: Dict, dictionary with all metrics
+    """
+    mape = MAPE(y_true, y_pred)
+    vs = metrics.explained_variance_score(y_true, y_pred)
+    mae = metrics.mean_absolute_error(y_true, y_pred)
+    mse = metrics.mean_squared_error(y_true, y_pred)
+    r2 = metrics.r2_score(y_true, y_pred)
+
+    mtx = {
+        "mape": mape,
+        "evs": vs,
+        "mae": mae,
+        "mse": mse,
+        "rmse": math.sqrt(mse),
+        "r2": r2
+    }
+
+    return mtx
 
 
 if __name__ == '__main__':
