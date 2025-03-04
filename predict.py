@@ -7,7 +7,6 @@ import pandas as pd
 from data.data import process_data
 from keras.models import load_model
 import joblib
-from catboost import CatBoostRegressor
 
 
 warnings.filterwarnings("ignore")

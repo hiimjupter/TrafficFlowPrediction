@@ -57,21 +57,30 @@ def train_ml_model(model, X_train, y_train, name, config):
 def train_saes(models, X_train, y_train, name, config):
     """Train the SAEs model."""
     temp = X_train
-    for i in range(len(models) - 1):
-        if i > 0:
-            p = models[i - 1]
-            hidden_layer_model = Model(inputs=p.input,
-                                       outputs=p.get_layer('hidden').output)
-            temp = hidden_layer_model.predict(temp)
 
+    # First, ensure all models are compiled
+    for i in range(len(models) - 1):
+        models[i].compile(loss="mse", optimizer="rmsprop", metrics=['mape'])
+
+    # Train each autoencoder separately
+    for i in range(len(models) - 1):
+        print(f"Training autoencoder {i+1}")
+
+        # Train current autoencoder
         m = models[i]
-        m.compile(loss="mse", optimizer="rmsprop", metrics=['mape'])
         m.fit(temp, y_train, batch_size=config["batch"],
               epochs=config["epochs"],
               validation_split=0.05)
 
+        # Get the output of the hidden layer to feed into the next autoencoder
+        # For Sequential models, we need to create a new model to extract hidden layer outputs
+        hidden_output = Model(inputs=m.input,
+                              outputs=m.get_layer('hidden').output)
+        temp = hidden_output.predict(temp)
+
         models[i] = m
 
+    # Stack all trained autoencoders into the final SAES model
     saes = models[-1]
     for i in range(len(models) - 1):
         weights = models[i].get_layer('hidden').get_weights()
