@@ -234,5 +234,5 @@ def train_all_random_forest():
 
 
 if __name__ == '__main__':
-    # main(sys.argv)
-    train_all_random_forest()
+    main(sys.argv)
+    # train_all_random_forest()
